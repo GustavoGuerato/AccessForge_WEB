@@ -1,7 +1,8 @@
+import Login from "./pages/Login/Login";
 function App() {
   return (
-    <>
-      <h1>Esta Funcionando</h1>
+    <>      <Login />
+
     </>
   );
 }
