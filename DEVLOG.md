@@ -70,3 +70,59 @@ O formulário está integrado ao backend real e o login com credenciais válidas
 
 Conferir a resposta de `POST /auth/login` e o cookie de refresh na aba Network do navegador. Em seguida, validar o fluxo de autenticação com a rota protegida e continuar o roadmap do frontend.
 
+## 2026-10-19 — Dia 16 (S8) — Listagem de workspaces
+
+### Objetivo
+
+Integrar a tela de login à listagem real de workspaces do usuário autenticado, consumindo o endpoint protegido do backend e apresentando os estados da requisição.
+
+### Implementações
+
+- Integrada a chamada `GET /workspaces` após o login bem-sucedido.
+- Enviado o JWT de acesso no cabeçalho `Authorization: Bearer <token>`.
+- Mantido o token de acesso em memória no estado React, sem persistência em `localStorage` ou `sessionStorage`.
+- Definidos os tipos TypeScript para os dados de workspace: `id`, `name`, `slug` e `role`.
+- Implementada validação em tempo de execução da estrutura da resposta recebida, utilizando `unknown` e uma função de verificação de tipo.
+- Implementado estado de carregamento específico para a listagem de workspaces.
+- Implementado tratamento de erros da requisição, incluindo respostas HTTP não bem-sucedidas e falhas de conexão.
+- Implementado estado vazio para usuários autenticados sem workspaces associados.
+- Implementada renderização da lista com o nome do workspace e o papel do usuário.
+- Adicionado botão para tentar novamente quando a listagem falha.
+- Separados os estados de erro do login e de erro da listagem de workspaces.
+
+### Integração com o backend
+
+Endpoint utilizado: `GET /workspaces`.
+
+A requisição envia o token de acesso no cabeçalho `Authorization`. O backend identifica o usuário autenticado, consulta os memberships correspondentes e retorna os workspaces aos quais ele pertence.
+
+A interface apresenta os dados recebidos, mas não determina quais workspaces o usuário está autorizado a acessar.
+
+### Testes manuais realizados
+
+- Confirmado o login com credenciais válidas utilizando um usuário de integração existente.
+- Confirmada a apresentação dos dados do usuário autenticado na interface.
+- Confirmado o estado vazio para um usuário sem memberships.
+- Criado um membership de teste associando o usuário ao workspace `Workspace Teste` com o papel `owner`.
+- Verificada a associação no PostgreSQL por meio de uma consulta com `JOIN` entre usuários, workspaces e roles.
+- Confirmada a exibição de `Workspace Teste — Papel: owner` na interface após a associação.
+
+### Decisões técnicas
+
+- O token é enviado explicitamente na requisição protegida.
+- Os dados da API são tratados como `unknown` antes da validação estrutural.
+- Os estados de carregamento, erro, lista vazia e sucesso são diferenciados para evitar que uma falha seja apresentada como ausência de dados.
+- A senha é limpa após o login bem-sucedido.
+- O token continua armazenado somente em memória; a restauração da sessão após recarregar a página não faz parte desta implementação.
+
+### Limitações e pendências
+
+- A validação manual de token inválido ou expirado na interface ainda precisa ser confirmada.
+- A restauração de sessão por meio de `POST /auth/refresh` ainda não está implementada no frontend.
+- A autenticação ainda não está centralizada em um contexto global.
+- A interface continua sendo uma implementação funcional básica, sem refinamento visual.
+- Os testes automatizados do backend não substituem os testes manuais de interface.
+
+### Estado do Dia 16
+
+Confirmado o fluxo de login, a chamada autenticada de `GET /workspaces`, a renderização de um workspace real e a apresentação do estado vazio. O teste manual de erro de autenticação permanece pendente de confirmação.
