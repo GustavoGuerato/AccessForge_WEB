@@ -115,7 +115,6 @@ function Workspaces() {
       const response = await fetch(`${apiUrl}/auth/logout`, {
         method: "POST",
         credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
       if (!response.ok) {
@@ -123,17 +122,16 @@ function Workspaces() {
           `O backend não confirmou o logout. HTTP ${response.status}.`,
         );
       }
-
-      logout();
     } catch (err: unknown) {
       setError(
         err instanceof TypeError
-          ? "Não foi possível conectar à API para encerrar a sessão."
+          ? "Não foi possível conectar à API. A sessão local será encerrada, mas o servidor pode não ter revogado o refresh token."
           : err instanceof Error
-            ? err.message
-            : "Ocorreu um erro inesperado ao sair.",
+            ? `${err.message} A sessão local será encerrada, mas confirme a revogação no servidor.`
+            : "Erro inesperado. A sessão local será encerrada, mas a revogação no servidor não foi confirmada.",
       );
     } finally {
+      logout();
       setLoggingOut(false);
     }
   }
