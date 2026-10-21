@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../../auth/AuthContext";
@@ -19,92 +18,13 @@ type ApiErrorResponse = {
   message?: string;
 };
 
-type Workspace = {
-  id: string;
-  name: string;
-  slug: string;
-  role: string;
-};
-
-function isWorkspaceArray(value: unknown): value is Workspace[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (item: unknown) =>
-        typeof item === "object" &&
-        item !== null &&
-        "id" in item &&
-        typeof item.id === "string" &&
-        "name" in item &&
-        typeof item.name === "string" &&
-        "slug" in item &&
-        typeof item.slug === "string" &&
-        "role" in item &&
-        typeof item.role === "string",
-    )
-  );
-}
-
 function Login() {
-  const { user, token, login } = useAuth();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [workspacesLoading, setWorkspacesLoading] = useState(false);
-  const [workspacesErro, setWorkspacesErro] = useState("");
-
-  async function carregarWorkspaces(accessToken: string) {
-    setWorkspacesLoading(true);
-    setWorkspacesErro("");
-
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL;
-
-      if (!apiUrl) {
-        throw new Error("API URL não está definida.");
-      }
-
-      const response = await fetch(`${apiUrl}/workspaces`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      const body: unknown = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        const apiError = body as ApiErrorResponse | null;
-
-        throw new Error(
-          apiError?.error ??
-          apiError?.message ??
-          `Não foi possível carregar os workspaces. HTTP ${response.status}.`,
-        );
-      }
-
-      if (!isWorkspaceArray(body)) {
-        throw new Error(
-          "A API retornou uma resposta inválida para os workspaces.",
-        );
-      }
-
-      setWorkspaces(body);
-    } catch (error: unknown) {
-      setWorkspacesErro(
-        error instanceof TypeError
-          ? "Não foi possível conectar à API. Verifique se o backend está ativo."
-          : error instanceof Error
-            ? error.message
-            : "Ocorreu um erro inesperado.",
-      );
-    } finally {
-      setWorkspacesLoading(false);
-    }
-  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -149,8 +69,8 @@ function Login() {
 
         throw new Error(
           apiError?.error ??
-          apiError?.message ??
-          `Não foi possível entrar. Erro HTTP ${response.status}.`,
+            apiError?.message ??
+            `Não foi possível entrar. Erro HTTP ${response.status}.`,
         );
       }
 
@@ -179,8 +99,6 @@ function Login() {
 
       login(data.user, data.token);
       setSenha("");
-
-      await carregarWorkspaces(data.token);
     } catch (error: unknown) {
       setErro(
         error instanceof TypeError
@@ -193,55 +111,7 @@ function Login() {
       setLoading(false);
     }
   }
-
-  if (user && token) {
-    return (
-      <main>
-        <h1>Bem-vindo ao AccessForge</h1>
-        <p>Login realizado com sucesso, {user.username}.</p>
-        <p>Usuário autenticado: {user.email}</p>
-
-        <h2>Meus workspaces</h2>
-
-        {workspacesLoading && (
-          <p role="status">Carregando workspaces...</p>
-        )}
-
-        {workspacesErro && (
-          <div>
-            <p role="alert">{workspacesErro}</p>
-
-            <button
-              type="button"
-              disabled={workspacesLoading}
-              onClick={() => void carregarWorkspaces(token)}
-            >
-              Tentar novamente
-            </button>
-          </div>
-        )}
-
-        {!workspacesLoading &&
-          !workspacesErro &&
-          workspaces.length === 0 && (
-            <p>Você ainda não pertence a nenhum workspace.</p>
-          )}
-
-        {!workspacesLoading &&
-          !workspacesErro &&
-          workspaces.length > 0 && (
-            <ul>
-              {workspaces.map((workspace) => (
-                <li key={workspace.id}>
-                  <strong>{workspace.name}</strong>
-                  <span> — Papel: {workspace.role}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-      </main>
-    );
-  }
+  
 
   return (
     <main>
