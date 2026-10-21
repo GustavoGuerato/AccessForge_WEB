@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { useAuth } from "../../auth/AuthContext";
 
 type User = {
   id: string;
@@ -45,13 +46,12 @@ function isWorkspaceArray(value: unknown): value is Workspace[] {
 }
 
 function Login() {
+  const { user, token, login } = useAuth();
+
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const [usuario, setUsuario] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspacesLoading, setWorkspacesLoading] = useState(false);
@@ -177,8 +177,7 @@ function Login() {
         throw new Error("Os dados de autenticação recebidos são inválidos.");
       }
 
-      setUsuario(data.user);
-      setToken(data.token);
+      login(data.user, data.token);
       setSenha("");
 
       await carregarWorkspaces(data.token);
@@ -195,12 +194,12 @@ function Login() {
     }
   }
 
-  if (usuario && token) {
+  if (user && token) {
     return (
       <main>
         <h1>Bem-vindo ao AccessForge</h1>
-        <p>Login realizado com sucesso, {usuario.username}.</p>
-        <p>Usuário autenticado: {usuario.email}</p>
+        <p>Login realizado com sucesso, {user.username}.</p>
+        <p>Usuário autenticado: {user.email}</p>
 
         <h2>Meus workspaces</h2>
 
