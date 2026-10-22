@@ -70,6 +70,8 @@ O formulário está integrado ao backend real e o login com credenciais válidas
 
 Conferir a resposta de `POST /auth/login` e o cookie de refresh na aba Network do navegador. Em seguida, validar o fluxo de autenticação com a rota protegida e continuar o roadmap do frontend.
 
+---
+
 ## 2026-10-19 — Dia 16 (S8) — Listagem de workspaces
 
 ### Objetivo
@@ -126,3 +128,88 @@ A interface apresenta os dados recebidos, mas não determina quais workspaces o 
 ### Estado do Dia 16
 
 Confirmado o fluxo de login, a chamada autenticada de `GET /workspaces`, a renderização de um workspace real e a apresentação do estado vazio. O teste manual de erro de autenticação permanece pendente de confirmação.
+
+---
+
+## 2026-10-21 — Dia 17 (S8) — Restauração de sessão e tratamento centralizado de 401
+
+### Objetivo
+
+Centralizar o estado de autenticação no frontend, restaurar a sessão após o recarregamento da página e encerrar o estado local de autenticação quando uma requisição protegida receber uma resposta HTTP `401 Unauthorized`.
+
+### Implementações
+
+- Consolidado o gerenciamento do estado de autenticação no `AuthContext`.
+- Centralizados no contexto os dados do usuário autenticado, o access token, o estado de carregamento e as funções de login e logout.
+- Mantido o `AuthProvider` envolvendo a aplicação no ponto de entrada do React.
+- Implementada a verificação inicial da sessão no `App.tsx`.
+- Implementado o estado de carregamento inicial para impedir que a tela de login ou a área autenticada seja exibida antes da conclusão da verificação da sessão.
+- Integrado o endpoint `POST /auth/refresh` para solicitar um novo access token usando o cookie de refresh token enviado pelo navegador.
+- Integrado o endpoint `GET /auth/me` para recuperar os dados do usuário após a renovação do token.
+- Adicionadas verificações em tempo de execução para validar a estrutura da resposta de refresh e os dados do usuário.
+- Implementada a renderização condicional no `App.tsx`: durante a verificação, a aplicação exibe o estado de carregamento; após a verificação, apresenta a tela de workspaces quando existe um usuário autenticado com token ou a tela de login quando não existe autenticação válida.
+- Corrigida a consulta do backend utilizada por `/auth/me`, substituindo a referência à coluna inexistente `username` pela coluna `name`, com o alias `username`, compatível com o formato esperado pelo frontend.
+- Criado o módulo compartilhado `src/api/apiFetch.ts` para realizar requisições autenticadas com o access token.
+- Implementada no `apiFetch` a detecção de respostas HTTP `401`, acionando `logout()` para limpar o estado local de autenticação.
+- Integrado o `apiFetch` à requisição autenticada `GET /workspaces`, evitando manter nesse componente uma implementação duplicada do tratamento de `401`.
+
+### Integração com o backend
+
+Endpoints envolvidos:
+
+- `POST /auth/login`: autentica o usuário e fornece o access token.
+- `POST /auth/refresh`: utiliza o cookie de refresh token para solicitar um novo access token.
+- `GET /auth/me`: recupera os dados do usuário autenticado.
+- `POST /auth/logout`: encerra a sessão de refresh token no backend.
+- `GET /workspaces`: retorna os workspaces associados ao usuário autenticado.
+
+A restauração da sessão depende do cookie de refresh token gerenciado pelo backend. O access token permanece em memória no frontend.
+
+O `apiFetch` detecta respostas `401` nas requisições que passam por ele e aciona o logout local. Essa implementação não renova automaticamente o token e não repete a requisição que recebeu `401`.
+
+### Testes manuais realizados
+
+- Confirmado o login com credenciais válidas.
+- Confirmada a restauração da sessão após recarregar a página com `F5`.
+- Confirmada a recuperação dos dados do usuário por meio de `/auth/me` após a correção da consulta SQL no backend.
+- Confirmada a exibição da área de workspaces quando a sessão é restaurada com sucesso.
+- Confirmado o retorno à tela de login após executar o logout.
+- Confirmada a resposta HTTP `200` de `GET /workspaces` com um access token válido.
+- Simulada uma requisição com token inválido e confirmada a resposta HTTP `401` do backend.
+- Confirmado que a resposta `401`, ao passar pelo `apiFetch`, aciona o logout local e faz a interface retornar à tela de login.
+- Confirmado que a implementação compilou sem erros de TypeScript durante a verificação realizada.
+
+### Decisões técnicas
+
+- **Estado de autenticação centralizado:** o `AuthContext` mantém o estado compartilhado entre os componentes, evitando que cada tela gerencie isoladamente usuário e token.
+- **Access token em memória:** o token de acesso continua no estado React, sem persistência em `localStorage` ou `sessionStorage`.
+- **Refresh token em cookie `HttpOnly`:** o navegador envia o cookie conforme a configuração da requisição, sem expor seu conteúdo ao JavaScript do frontend.
+- **Restauração explícita da sessão:** a aplicação verifica a sessão durante a inicialização antes de decidir qual tela apresentar.
+- **Renderização condicional:** mantida a decisão de não introduzir React Router nesta etapa, considerando a quantidade atual de telas.
+- **Tratamento compartilhado de `401`:** o `apiFetch` concentra essa responsabilidade para as requisições que o utilizam.
+- **Separação entre autenticação e autorização:** a interface controla o fluxo de navegação, mas a autorização continua sendo responsabilidade do backend. A existência de estado autenticado no frontend não substitui a validação do token e das permissões na API.
+
+### Limitações e pendências
+
+- O tratamento centralizado de `401` aplica-se somente às requisições que utilizam `apiFetch`. Chamadas diretas a `fetch` não recebem esse tratamento automaticamente.
+- Ainda não foi implementada a renovação automática do access token seguida da repetição da requisição original.
+- O teste com token inválido foi realizado manualmente. A expiração real do access token não foi comprovada por esse teste.
+- O comportamento de notificações ao usuário após o encerramento da sessão pode ser aprimorado em uma etapa posterior.
+- A interface continua funcional, mas sem refinamento visual significativo.
+- Os testes descritos neste registro são manuais; não devem ser interpretados como novos testes automatizados.
+
+### Estado do Dia 17
+
+A centralização do estado de autenticação, a restauração da sessão após o recarregamento da página e o tratamento de respostas `401` nas requisições que utilizam `apiFetch` foram implementados e verificados manualmente.
+
+O frontend consegue recuperar a sessão por meio do refresh token, buscar os dados do usuário e apresentar a área autenticada. Quando uma requisição que utiliza `apiFetch` recebe `401`, o estado local de autenticação é encerrado e a interface retorna à tela de login.
+
+A centralização do tratamento de erros depende do uso consistente de `apiFetch` nas futuras requisições autenticadas.
+
+### Próximo passo
+
+- Restaurar o uso da variável `token` no `Workspaces.tsx`, caso o valor de teste `"token-invalido"` ainda esteja no código.
+- Revisar as alterações do frontend com `git diff`.
+- Atualizar o DEVLOG no repositório.
+- Registrar o commit do Dia 17 após confirmar que os arquivos estão corretos.
+- Avançar para o próximo item do roadmap depois de revisar o estado final do projeto.

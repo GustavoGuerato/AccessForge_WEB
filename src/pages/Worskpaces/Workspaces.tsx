@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../../auth/AuthContext";
+import { apiFetch } from "../../api/apiFetch";
 
 type Workspace = {
   id: string;
@@ -55,10 +56,9 @@ function Workspaces() {
         throw new Error("A URL da API não está configurada.");
       }
 
-      const response = await fetch(`${apiUrl}/workspaces`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const response = await apiFetch(`${apiUrl}/workspaces`, {
+        token,
+        logout,
       });
 
       const body: unknown = await response.json().catch(() => null);
@@ -67,9 +67,8 @@ function Workspaces() {
         const apiError = body as ApiErrorResponse | null;
 
         if (response.status === 401) {
-          throw new Error(
-            "Sua sessão expirou ou não é mais válida. Faça login novamente.",
-          );
+          logout();
+          return;
         }
 
         throw new Error(
