@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../../auth/AuthContext";
-
+import Field from "../../components/Field/Field";
 type User = {
   id: string;
   username: string;
@@ -111,33 +111,30 @@ function Login() {
       setLoading(false);
     }
   }
-  
 
   return (
     <main>
       <h1>Entrar no AccessForge</h1>
 
       <form onSubmit={handleSubmit}>
-        <label htmlFor="email">E-mail</label>
-        <input
-          id="email"
+        <Field
+          label="E-mail"
           name="email"
           type="email"
           autoComplete="email"
           required
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={setEmail}
         />
 
-        <label htmlFor="senha">Senha</label>
-        <input
-          id="senha"
+        <Field
+          label="Senha"
           name="password"
           type="password"
           autoComplete="current-password"
           required
           value={senha}
-          onChange={(event) => setSenha(event.target.value)}
+          onChange={setSenha}
         />
 
         <button type="submit" disabled={loading}>
