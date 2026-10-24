@@ -1,7 +1,9 @@
+
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import Field from "../../components/Field/Field";
+
 type User = {
   id: string;
   username: string;
@@ -24,11 +26,19 @@ function Login() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
+  const [errosCampo, setErrosCampo] = useState({
+    email: "",
+    senha: "",
+  });
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErro("");
+    setErrosCampo({
+      email: "",
+      senha: "",
+    });
 
     if (email.trim() === "" || senha === "") {
       setErro("Por favor, preencha todos os campos.");
@@ -125,6 +135,7 @@ function Login() {
           required
           value={email}
           onChange={setEmail}
+          error={errosCampo.email}
         />
 
         <Field
@@ -135,6 +146,7 @@ function Login() {
           required
           value={senha}
           onChange={setSenha}
+          error={errosCampo.senha}
         />
 
         <button type="submit" disabled={loading}>

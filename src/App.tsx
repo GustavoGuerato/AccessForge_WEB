@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useAuth, type User } from "./auth/AuthContext";
 import Login from "./pages/Login/Login";
 import Workspaces from "./pages/Worskpaces/Workspaces";
-
 type RefreshResponse = {
   token: string;
 };
