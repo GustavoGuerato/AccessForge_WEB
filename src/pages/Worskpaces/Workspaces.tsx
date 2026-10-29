@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import { apiFetch } from "../../api/apiFetch";
+import Members from "../Members/Members";
 
 type Workspace = {
   id: string;
@@ -40,6 +41,9 @@ function Workspaces() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(
+    null,
+  );
 
   async function carregarWorkspaces() {
     setLoading(true);
@@ -64,12 +68,12 @@ function Workspaces() {
       const body: unknown = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const apiError = body as ApiErrorResponse | null;
-
         if (response.status === 401) {
           logout();
           return;
         }
+
+        const apiError = body as ApiErrorResponse | null;
 
         throw new Error(
           apiError?.error ??
@@ -135,6 +139,17 @@ function Workspaces() {
     }
   }
 
+  if (selectedWorkspaceId !== null && token) {
+    return (
+      <Members
+        workspaceId={selectedWorkspaceId}
+        token={token}
+        logout={logout}
+        onBack={() => setSelectedWorkspaceId(null)}
+      />
+    );
+  }
+
   return (
     <main>
       <h1>Bem-vindo ao AccessForge</h1>
@@ -177,11 +192,18 @@ function Workspaces() {
         </p>
       )}
 
-      {!loading && workspaces.length > 0 && (
+      {!loading && !error && workspaces.length > 0 && (
         <ul>
           {workspaces.map((workspace) => (
             <li key={workspace.id}>
-              <strong>{workspace.name}</strong>
+              <button
+                type="button"
+                onClick={() => setSelectedWorkspaceId(workspace.id)}
+                disabled={loggingOut}
+              >
+                {workspace.name}
+              </button>
+
               <span> — Papel: {workspace.role}</span>
             </li>
           ))}

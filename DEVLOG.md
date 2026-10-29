@@ -546,3 +546,21 @@ A conclusão do dia depende da confirmação dos testes de regressão, da remoç
 \- Registrar o commit da refatoração após confirmar que os arquivos estão corretos.
 
 \- Avançar para o próximo item do roadmap após concluir as verificações.
+
+# DEVLOG — Dia 20: Tela de membros (Frontend)
+
+- **Objetivo:** integrar a tela de membros à lista de workspaces do AccessForge.
+- **Navegação:** seleção por `selectedWorkspaceId` em `Workspaces.tsx`, com navegação condicional por estado React, sem React Router.
+- **Integração:** clique em um workspace abre `Members.tsx`; botão “Voltar aos workspaces” retorna à lista.
+- **Busca de dados:** `GET /workspaces/:workspaceId/members`, utilizando `apiFetch` e o token de autenticação.
+- **Validação:** resposta verificada por `isMemberArray`, validando `id`, `name` e `role`.
+- **Estados da interface:** `loading`, `error`, `empty` e `success`, definidos por uma união discriminada (`MembersState`).
+- **Renderização:** exibição do nome e papel de cada membro, utilizando `member.id` como `key`.
+- **Concorrência:** `AbortController` no cleanup do `useEffect`, com verificações de cancelamento para evitar atualizações de estado por requisições canceladas.
+- **Tratamento de erros:** mensagens específicas para `401`, `403` e `404`; falhas de rede exibem mensagem e permitem tentar novamente.
+- **Nova tentativa:** contador `attempt` para disparar novamente o efeito sem duplicar a lógica da requisição.
+- **Segurança da interface:** dados dos membros são renderizados como texto React, sem inserção de HTML.
+- **Dependências:** nenhuma biblioteca nova adicionada.
+- **Validação manual:** navegação entre workspaces e tela de membros, carregamento e retorno testados; funcionamento confirmado.
+- **Limitações conhecidas:** a seleção do workspace não é preservada após recarregar a página. Os cenários de troca rápida com atraso artificial e todas as respostas de erro ainda precisam de confirmação individual.
+- **Commits:** preencher após realizar e confirmar o commit do frontend.
