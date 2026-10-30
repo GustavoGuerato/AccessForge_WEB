@@ -1,28 +1,37 @@
 # AccessForge Web
 
-**Frontend do AccessForge**: cliente React que consome a API de autenticação, autorização e workspaces multi-tenant do repositório `workspace_auth`.
+**Frontend do AccessForge**: cliente React que consome a API de autenticação, autorização e workspaces multi-tenant do repositório [`workspace_auth`](https://github.com/GustavoGuerato/workspace_auth).
 
 `React 19` · `TypeScript` · `Vite` · `Context API` · `fetch`
 
 O foco do projeto é o **comportamento correto de uma interface assíncrona** (sessão, estados de carregamento e erro, respostas inesperadas da API, requisições canceladas), não o visual. A interface é propositalmente simples.
 
+> **Ainda sem deploy:** não há demonstração publicada. Para ver o app funcionando é preciso rodá-lo localmente junto com o backend (veja [Rodando localmente](#rodando-localmente)).
+
 ## Sumário
 
-- [Status](#status)
-- [Funcionalidades](#funcionalidades)
-- [Como funciona](#como-funciona)
-  - [Restauração da sessão](#restauração-da-sessão)
-  - [Chamadas autenticadas](#chamadas-autenticadas)
-  - [Estados da tela de membros](#estados-da-tela-de-membros)
-- [Stack](#stack)
-- [Decisões técnicas](#decisões-técnicas)
-- [Segurança](#segurança)
-- [Rodando localmente](#rodando-localmente)
-- [Scripts](#scripts)
-- [Estrutura do projeto](#estrutura-do-projeto)
-- [Limitações conhecidas](#limitações-conhecidas)
-- [Roadmap](#roadmap)
-- [Autor](#autor)
+- [AccessForge Web](#accessforge-web)
+  - [Sumário](#sumário)
+  - [Status](#status)
+  - [Funcionalidades](#funcionalidades)
+  - [Rodando localmente](#rodando-localmente)
+    - [Pré-requisitos](#pré-requisitos)
+    - [Instalação](#instalação)
+    - [Variáveis de ambiente](#variáveis-de-ambiente)
+    - [Backend](#backend)
+    - [Execução](#execução)
+  - [Como funciona](#como-funciona)
+    - [Restauração da sessão](#restauração-da-sessão)
+    - [Chamadas autenticadas](#chamadas-autenticadas)
+    - [Estados da tela de membros](#estados-da-tela-de-membros)
+  - [API consumida](#api-consumida)
+  - [Stack](#stack)
+  - [Decisões técnicas](#decisões-técnicas)
+  - [Segurança](#segurança)
+  - [Scripts](#scripts)
+  - [Estrutura do projeto](#estrutura-do-projeto)
+  - [Limitações conhecidas](#limitações-conhecidas)
+- [](#)
 
 ## Status
 
@@ -38,7 +47,7 @@ O foco do projeto é o **comportamento correto de uma interface assíncrona** (s
 | Formulário de convite de membros                         | Pendente     | —                            |
 | Testes automatizados                                     | Não          | —                            |
 | Roteamento por URL                                       | Não          | —                            |
-| Deploy                                                   | Pendente     | —                            |
+| Deploy e integração contínua                             | Pendente     | —                            |
 
 "Manualmente" significa verificado no navegador pelo autor; não há suíte automatizada neste repositório.
 
@@ -49,6 +58,43 @@ O foco do projeto é o **comportamento correto de uma interface assíncrona** (s
 - **Lista de workspaces** com o papel do usuário em cada um.
 - **Membros do workspace:** nome e papel de cada membro, com estados de carregamento, vazio, erro e sucesso, e botão "Tentar novamente".
 - **Logout** que chama a API para revogar o refresh token e encerra a sessão local mesmo se a API falhar (avisando o usuário).
+
+## Rodando localmente
+
+### Pré-requisitos
+
+- Node.js compatível com as dependências (Vite 8 e ESLint 10 exigem versões recentes; confira o campo `engines` de cada pacote), npm e Git.
+- O backend [`workspace_auth`](https://github.com/GustavoGuerato/workspace_auth) em execução, com o PostgreSQL migrado.
+
+### Instalação
+
+```bash
+git clone https://github.com/GustavoGuerato/AccessForge_WEB.git
+cd AccessForge_WEB
+npm install
+```
+
+### Variáveis de ambiente
+
+Crie `.env.local` na raiz (arquivo ignorado pelo Git, via `*.local`):
+
+| Variável       | Obrigatória | Descrição                                                           |
+| -------------- | ----------- | ------------------------------------------------------------------- |
+| `VITE_API_URL` | Sim         | URL base da API, **sem barra final** (ex.: `http://localhost:3000`) |
+
+Sem essa variável, as telas exibem "API URL não está definida".
+
+### Backend
+
+No `.env` do backend, `FRONTEND_ORIGIN` deve ser exatamente a origem do Vite (por padrão, `http://localhost:5173`); caso contrário o CORS bloqueia as chamadas com cookie. Confirme que há **uma única instância** do backend ouvindo na porta configurada: uma instância antiga ainda ativa pode responder no lugar da atual.
+
+### Execução
+
+```bash
+npm run dev
+```
+
+Abra o endereço exibido pelo Vite. Para entrar, use um usuário cadastrado no backend (`POST /auth/register`).
 
 ## Como funciona
 
@@ -76,7 +122,7 @@ sequenceDiagram
         A-->>W: { id, username, email }
         W->>W: login(user, token)
     else Qualquer falha
-        W->>W: logout() → tela de login
+        W->>W: logout() e tela de login
     end
 ```
 
@@ -102,78 +148,55 @@ type MembersState =
 
 Mapeamento de falhas: `401` → sessão expirada; `403` → sem permissão; `404` → workspace não encontrado; falha de rede (`TypeError`) → mensagem de backend inativo; resposta fora do formato esperado → "Resposta inválida do servidor". O botão "Tentar novamente" incrementa um contador (`attempt`) que reexecuta o efeito sem duplicar a lógica. O `AbortController` no *cleanup* evita que uma resposta antiga atualize o estado depois de o usuário trocar de tela.
 
+## API consumida
+
+O frontend depende destes endpoints do backend. O contrato completo está no repositório [`workspace_auth`](https://github.com/GustavoGuerato/workspace_auth).
+
+| Método | Rota                               | Exige token | Uso no frontend                                                  |
+| ------ | ---------------------------------- | ----------- | ---------------------------------------------------------------- |
+| POST   | `/auth/login`                      | Não         | Entrar com e-mail e senha                                        |
+| POST   | `/auth/refresh`                    | Cookie      | Obter novo access token ao abrir o app                           |
+| GET    | `/auth/me`                         | Sim         | Buscar o usuário após o refresh                                  |
+| POST   | `/auth/logout`                     | Cookie      | Revogar o refresh token no servidor                              |
+| GET    | `/workspaces`                      | Sim         | Listar os workspaces do usuário e o papel em cada um             |
+| GET    | `/workspaces/:workspaceId/members` | Sim         | Listar os membros de um workspace (`401`, `403`, `404` tratados) |
+
 ## Stack
 
-| Tecnologia              | Responsabilidade                                |
-| ----------------------- | ----------------------------------------------- |
-| React 19                | Interface e estado                              |
-| TypeScript (~6.0)       | Tipagem estática (`tsc -b` faz parte do build)  |
-| Vite 8                  | Servidor de desenvolvimento e build             |
-| Context API             | Sessão (`user`, `token`, `isLoading`)           |
-| `fetch` nativo          | Comunicação com a API                           |
+| Tecnologia                 | Responsabilidade                                  |
+| -------------------------- | ------------------------------------------------- |
+| React 19                   | Interface e estado                                |
+| TypeScript (~6.0)          | Tipagem estática (`tsc -b` faz parte do build)    |
+| Vite 8                     | Servidor de desenvolvimento e build               |
+| Context API                | Sessão (`user`, `token`, `isLoading`)             |
+| `fetch` nativo             | Comunicação com a API                             |
 | ESLint + typescript-eslint | Análise estática (`react-hooks`, `react-refresh`) |
 
 Sem dependências de runtime além de `react` e `react-dom`.
 
 ## Decisões técnicas
 
-| Decisão                                          | Alternativa                         | Motivo                                                     | Trade-off                                                                    |
-| ------------------------------------------------ | ----------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Access token só em memória                       | `localStorage`                      | Não fica exposto a leitura persistente por scripts         | Perde-se ao recarregar; exige refresh a cada abertura                        |
-| Restaurar sessão via cookie `HttpOnly` + `/me`   | Guardar usuário no navegador        | O servidor continua sendo a fonte da verdade               | Uma ida à API antes de renderizar a tela                                     |
-| Respostas como `unknown` + *type guards*         | Cast direto (`as Tipo`)             | A API pode mudar ou falhar; o cliente não confia no formato | Mais código de validação por tela                                            |
-| União discriminada para estados da requisição    | Vários `useState` booleanos         | Torna estados impossíveis irrepresentáveis                 | Mais verboso                                                                 |
-| `AbortController` nos efeitos                    | Ignorar respostas antigas           | Cancela a requisição e evita `setState` obsoleto           | Exige checar `signal.aborted` em cada ponto assíncrono                       |
-| Navegação por estado, sem React Router           | Roteador                            | Escopo mínimo na fase atual do roadmap                     | Sem URLs por tela; a seleção se perde ao recarregar                          |
-| `fetch` + `apiFetch` próprio                     | Axios, React Query                  | Sem dependência extra; comportamento explícito             | Sem cache, *retry* ou deduplicação automáticos                               |
-| Componente `Field` controlado e reutilizável     | Inputs repetidos em cada formulário | Um só lugar para `label`, `aria-invalid` e `aria-describedby` | Pai controla o valor e a mensagem de erro                                    |
+| Decisão                                        | Alternativa                         | Motivo                                                        | Trade-off                                              |
+| ---------------------------------------------- | ----------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------ |
+| Access token só em memória                     | `localStorage`                      | Não fica exposto a leitura persistente por scripts            | Perde-se ao recarregar; exige refresh a cada abertura  |
+| Restaurar sessão via cookie `HttpOnly` + `/me` | Guardar usuário no navegador        | O servidor continua sendo a fonte da verdade                  | Uma ida à API antes de renderizar a tela               |
+| Respostas como `unknown` + *type guards*       | Cast direto (`as Tipo`)             | A API pode mudar ou falhar; o cliente não confia no formato   | Mais código de validação por tela                      |
+| União discriminada para estados da requisição  | Vários `useState` booleanos         | Torna estados impossíveis irrepresentáveis                    | Mais verboso                                           |
+| `AbortController` nos efeitos                  | Ignorar respostas antigas           | Cancela a requisição e evita `setState` obsoleto              | Exige checar `signal.aborted` em cada ponto assíncrono |
+| Navegação por estado, sem React Router         | Roteador                            | Escopo mínimo na fase atual do roadmap                        | Sem URLs por tela; a seleção se perde ao recarregar    |
+| `fetch` + `apiFetch` próprio                   | Axios, React Query                  | Sem dependência extra; comportamento explícito                | Sem cache, *retry* ou deduplicação automáticos         |
+| Componente `Field` controlado e reutilizável   | Inputs repetidos em cada formulário | Um só lugar para `label`, `aria-invalid` e `aria-describedby` | Pai controla o valor e a mensagem de erro              |
 
 ## Segurança
 
-| Risco                      | Mecanismo                                                              | Observação                                                                         |
-| -------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Roubo de token por XSS     | Access token em memória; refresh em cookie `HttpOnly`                  | Um XSS ainda pode usar o token enquanto a página estiver aberta                    |
-| Injeção de HTML (XSS)      | Dados da API renderizados como texto pelo React; sem `dangerouslySetInnerHTML` | Depende de manter essa prática                                               |
-| Respostas inesperadas      | *Type guards* antes de usar os dados                                   | Valida forma, não regras de negócio                                                |
-| Autorização                | A **decisão é do backend** (`401`/`403`)                               | O frontend só reage; esconder botões não é segurança                               |
-| CORS e cookies             | `credentials: "include"` nas chamadas de sessão                        | O backend precisa permitir a origem do frontend (`FRONTEND_ORIGIN`)                |
-| Variáveis `VITE_*`         | Só a URL pública da API                                                | Tudo o que começa com `VITE_` vai para o bundle; **nunca** coloque segredos nelas |
-
-## Rodando localmente
-
-### Pré-requisitos
-
-Node.js compatível com as dependências (Vite 8 e ESLint 10 exigem versões recentes; confira o campo `engines` de cada pacote), npm, Git e o backend [`workspace_auth`](https://github.com/GustavoGuerato/workspace_auth) em execução com PostgreSQL migrado.
-
-### Instalação
-
-```bash
-git clone <URL_DO_REPOSITORIO>
-cd accessforge-web
-npm install
-```
-
-### Variáveis de ambiente
-
-Crie `.env.local` na raiz (arquivo ignorado pelo Git, via `*.local`):
-
-| Variável        | Obrigatória | Descrição                                                          |
-| --------------- | ----------- | ------------------------------------------------------------------ |
-| `VITE_API_URL`  | Sim         | URL base da API, **sem barra final** (ex.: `http://localhost:3000`) |
-
-Sem essa variável, as telas exibem "API URL não está definida".
-
-### Backend
-
-No `.env` do backend, `FRONTEND_ORIGIN` deve ser exatamente a origem do Vite (por padrão, `http://localhost:5173`); caso contrário o CORS bloqueia as chamadas com cookie. Suba **uma única instância** do backend na porta configurada.
-
-### Execução
-
-```bash
-npm run dev
-```
-
-Abra o endereço exibido pelo Vite. Para entrar, use um usuário cadastrado no backend (`POST /auth/register`).
+| Risco                  | Mecanismo                                                                      | Observação                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| Roubo de token por XSS | Access token em memória; refresh em cookie `HttpOnly`                          | Um XSS ainda pode usar o token enquanto a página estiver aberta                    |
+| Injeção de HTML (XSS)  | Dados da API renderizados como texto pelo React; sem `dangerouslySetInnerHTML` | Depende de manter essa prática                                                     |
+| Respostas inesperadas  | *Type guards* antes de usar os dados                                           | Valida forma, não regras de negócio                                                |
+| Autorização            | A **decisão é do backend** (`401`/`403`)                                       | O frontend só reage; esconder botões não é segurança                               |
+| CORS e cookies         | `credentials: "include"` nas chamadas de sessão                                | O backend precisa permitir a origem do frontend (`FRONTEND_ORIGIN`)                |
+| Variáveis `VITE_*`     | Só a URL pública da API                                                        | Tudo o que começa com `VITE_` vai para o bundle; **nunca** coloque segredos nelas |
 
 ## Scripts
 
@@ -191,22 +214,18 @@ src/
 ├── api/
 │   └── apiFetch.ts          # fetch com Bearer token e tratamento de 401
 ├── auth/
-│   ├── AuthContext.tsx      # estado e ações da sessão (login, logout, loading)
-│   └── Protected.tsx        # arquivo vazio, ainda não usado
+│   └── AuthContext.tsx      # estado e ações da sessão (login, logout, loading)
 ├── components/
 │   └── Field/
-│       ├── Field.tsx        # campo controlado reutilizável (label, erro, a11y)
-│       └── FieldTest.tsx    # página de teste manual do Field, fora do fluxo
+│       └── Field.tsx        # campo controlado reutilizável (label, erro, a11y)
 ├── pages/
 │   ├── Login/               # formulário de login
 │   ├── Members/             # membros de um workspace
-│   └── Worskpaces/          # lista de workspaces e logout
+│   └── Workspaces/          # lista de workspaces e logout
 ├── App.tsx                  # restauração da sessão e escolha da tela
 ├── main.tsx                 # raiz: StrictMode + AuthProvider
 └── index.css
 ```
-
-> A pasta `Worskpaces` está com o nome escrito errado; renomeá-la exige atualizar os imports.
 
 ## Limitações conhecidas
 
@@ -216,21 +235,8 @@ src/
 4. **`401` tratado em dois lugares:** `apiFetch` chama `logout()` e as telas também reagem ao status; a regra deveria ficar em um só ponto.
 5. **A lista de workspaces só carrega ao clicar em "Carregar workspaces"**; não há carregamento automático.
 6. **Tipo `User` duplicado** em `AuthContext.tsx` e `Login.tsx`; os *type guards* de formato estão repetidos entre telas.
-7. **`Protected.tsx` vazio e `FieldTest.tsx` fora do fluxo** (arquivos de apoio que podem ser removidos ou concluídos).
-8. **Acessibilidade parcial:** `Field` associa `label` e erro, e as mensagens usam `role="status"`/`role="alert"`, mas não houve auditoria (foco, leitor de tela, contraste).
-9. **Interface sem estilo próprio** (apenas HTML semântico e o CSS do login).
-10. O `index.html` ainda usa `lang="en"` e o título `accessforge-web`.
-11. Formulário de convite de membros **ainda não existe**.
+7. **Acessibilidade parcial:** `Field` associa `label` e erro, e as mensagens usam `role="status"`/`role="alert"`, mas não houve auditoria (foco, leitor de tela, contraste).
+8. **Interface sem estilo próprio** (apenas HTML semântico e o CSS do login).
+9. **Formulário de convite de membros ainda não existe.**
 
-## Roadmap
-
-- [ ] Formulário de convite de membros, com estados ocioso/enviando/sucesso/erro e atualização da lista.
-- [ ] Centralizar o tratamento de `401` e a renovação do access token.
-- [ ] Extrair tipos e *type guards* compartilhados.
-- [ ] Testes automatizados dos fluxos principais.
-- [ ] Roteamento (somente quando houver necessidade concreta).
-- [ ] Deploy e integração contínua.
-
-## Autor
-
-**Gustavo Guerato dos Santos** · [LinkedIn](https://linkedin.com/in/gustavo-guerato-6b8403259)
+#
